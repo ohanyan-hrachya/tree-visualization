@@ -5,19 +5,23 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
     "preview": "vite preview",
+    "build": "vite build",
+
+    "lint": "eslint . --fix",
     "format": "prettier --write .",
-    "prepare": "husky"
+    "typecheck": "tsc --noEmit",
+
+    "lh:check": "pnpm exec lhci autorun",
+    "prepare": "husky install"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
-      "prettier --write",
-      "eslint --fix"
+      "pnpm eslint --fix",
+      "pnpm prettier --write"
     ],
     "*.{json,css,md}": [
-      "prettier --write"
+      "pnpm prettier --write"
     ]
   },
   "dependencies": {
@@ -28,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@lhci/cli": "^0.15.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
