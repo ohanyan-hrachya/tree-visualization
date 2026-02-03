@@ -1,6 +1,11 @@
 export type NodeId = string
 
-export type BlockType = 'root' | 'block' | 'subblock'
+export type BlockType = 'root' | 'block'
+
+export type BlockItem = {
+  id: string
+  name: string
+}
 
 export interface TreeNode {
   id: NodeId
@@ -8,6 +13,7 @@ export interface TreeNode {
   type: BlockType
   parentId: NodeId | null
   children: NodeId[]
+  blocks: BlockItem[]
 }
 
 export type TreeSnapshot = {
@@ -28,6 +34,10 @@ export interface TreeState {
   renameNode(id: NodeId, name: string): void
   addNode(parentId: NodeId, name?: string): NodeId | null
   removeNode(id: NodeId): void
+  addBlock(nodeId: NodeId, name?: string): NodeId | null
+  removeBlock(nodeId: NodeId, blockId: NodeId): void
+  renameBlock(nodeId: NodeId, blockId: NodeId, name: string): void
+  moveBlock(fromNodeId: NodeId, toNodeId: NodeId, blockId: NodeId, index?: number): void
   moveNode(id: NodeId, nextParentId: NodeId, index?: number): void
   toggleExpand(id: NodeId): void
   undo(): void
