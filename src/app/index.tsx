@@ -1,7 +1,15 @@
+import { IconButton, NodeCard } from '@/shared/ui'
+
 function App() {
   return (
     <>
-      <h1>Vite + React</h1>
+      <IconButton name="plus" />
+      <IconButton name="plusLarge" />
+      <IconButton name="close" />
+      <IconButton name="arrowUp" />
+      <IconButton name="arrowDown" />
+      <hr className="my-5" />
+      <NodeCard />
     </>
   )
 }
