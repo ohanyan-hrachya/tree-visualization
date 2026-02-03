@@ -1,22 +1,7 @@
 import { create } from 'zustand'
 import { persist, subscribeWithSelector } from 'zustand/middleware'
 import { nanoid } from '@/shared/lib/nanoid'
-import type {
-  HistoryState,
-  TreeSnapshot,
-  TreeState,
-  BlockType,
-  NodeId,
-  TreeNode,
-} from './tree.types'
-
-const canHaveChildren = (type: BlockType) => type !== 'subblock'
-
-const childTypeForParent = (type: BlockType): Exclude<BlockType, 'root'> | null => {
-  if (type === 'root') return 'block'
-  if (type === 'block') return 'subblock'
-  return null
-}
+import type { HistoryState, TreeSnapshot, TreeState, NodeId, TreeNode } from './tree.types'
 
 const ROOT_ID: NodeId = 'root'
 const MAX_HISTORY = 50
@@ -27,10 +12,8 @@ const createRootNode = (): TreeNode => ({
   type: 'root',
   parentId: null,
   children: [],
+  blocks: [],
 })
-
-const defaultNameForType = (type: Exclude<BlockType, 'root'>) =>
-  type === 'block' ? 'New Block' : 'New Subblock'
 
 const snapshot = (state: TreeState): TreeSnapshot => ({
   nodes: state.nodes,
@@ -96,16 +79,14 @@ export const useTreeStore = create<TreeState>()(
           const parent = state.nodes[parentId]
           if (!parent) return null
 
-          const childType = childTypeForParent(parent.type)
-          if (!childType) return null
-
           const id = nanoid()
           const node: TreeNode = {
             id,
-            name: name ?? defaultNameForType(childType),
-            type: childType,
+            name: name ?? 'New Block',
+            type: 'block',
             parentId,
             children: [],
+            blocks: [],
           }
 
           set({
@@ -166,6 +147,127 @@ export const useTreeStore = create<TreeState>()(
           })
         },
 
+        addBlock: (nodeId, name) => {
+          const state = get()
+          const node = state.nodes[nodeId]
+          if (!node) return null
+
+          const id = nanoid()
+          const nextBlocks = [...(node.blocks ?? []), { id, name: name ?? 'New Block' }]
+
+          set({
+            nodes: {
+              ...state.nodes,
+              [nodeId]: {
+                ...node,
+                blocks: nextBlocks,
+              },
+            },
+            history: pushHistory(state),
+          })
+
+          return id
+        },
+
+        removeBlock: (nodeId, blockId) => {
+          const state = get()
+          const node = state.nodes[nodeId]
+          if (!node) return
+
+          const nextBlocks = (node.blocks ?? []).filter((block) => block.id !== blockId)
+          if (nextBlocks.length === (node.blocks ?? []).length) return
+
+          set({
+            nodes: {
+              ...state.nodes,
+              [nodeId]: {
+                ...node,
+                blocks: nextBlocks,
+              },
+            },
+            history: pushHistory(state),
+          })
+        },
+
+        renameBlock: (nodeId, blockId, name) => {
+          const state = get()
+          const node = state.nodes[nodeId]
+          if (!node) return
+
+          const nextBlocks = (node.blocks ?? []).map((block) =>
+            block.id === blockId ? { ...block, name } : block
+          )
+
+          set({
+            nodes: {
+              ...state.nodes,
+              [nodeId]: {
+                ...node,
+                blocks: nextBlocks,
+              },
+            },
+            history: pushHistory(state),
+          })
+        },
+
+        moveBlock: (fromNodeId, toNodeId, blockId, index) => {
+          const state = get()
+          const fromNode = state.nodes[fromNodeId]
+          const toNode = state.nodes[toNodeId]
+          if (!fromNode || !toNode) return
+
+          const fromBlocks = fromNode.blocks ?? []
+          const fromIndex = fromBlocks.findIndex((item) => item.id === blockId)
+          if (fromIndex === -1) return
+
+          const block = fromBlocks[fromIndex]
+
+          if (fromNodeId === toNodeId) {
+            const nextBlocks = [...fromBlocks]
+            nextBlocks.splice(fromIndex, 1)
+
+            let insertAt = index ?? nextBlocks.length
+            if (fromIndex < insertAt) {
+              insertAt -= 1
+            }
+            insertAt = Math.max(0, Math.min(insertAt, nextBlocks.length))
+            nextBlocks.splice(insertAt, 0, block)
+
+            set({
+              nodes: {
+                ...state.nodes,
+                [fromNodeId]: {
+                  ...fromNode,
+                  blocks: nextBlocks,
+                },
+              },
+              history: pushHistory(state),
+            })
+
+            return
+          }
+
+          const nextFromBlocks = fromBlocks.filter((item) => item.id !== blockId)
+          const toBlocks = [...(toNode.blocks ?? [])]
+          const insertAt = Math.max(0, Math.min(index ?? toBlocks.length, toBlocks.length))
+          toBlocks.splice(insertAt, 0, block)
+
+          set({
+            nodes: {
+              ...state.nodes,
+              [fromNodeId]: {
+                ...fromNode,
+                blocks: nextFromBlocks,
+              },
+              [toNodeId]: {
+                ...toNode,
+                blocks: toBlocks,
+              },
+            },
+            history: pushHistory(state),
+          })
+        },
+
         moveNode: (id, nextParentId, index) => {
           const state = get()
           const node = state.nodes[id]
@@ -173,8 +275,8 @@ export const useTreeStore = create<TreeState>()(
           if (!node || !nextParent) return
           if (node.type === 'root') return
 
-          const allowedChildType = childTypeForParent(nextParent.type)
-          if (!allowedChildType || allowedChildType !== node.type) return
+          const allowedChildType = 'block'
+          if (!allowedChildType) return
           if (isDescendant(state.nodes, id, nextParentId)) return
 
           const prevParentId = node.parentId
@@ -206,9 +308,10 @@ export const useTreeStore = create<TreeState>()(
 
           set({
             nodes: nextNodes,
-            expanded: canHaveChildren(nextParent.type)
-              ? { ...state.expanded, [nextParentId]: true }
-              : state.expanded,
+            expanded:
+              prevParentId === nextParentId
+                ? { ...state.expanded, [nextParentId]: true }
+                : state.expanded,
             history: pushHistory(state),
           })
         },
