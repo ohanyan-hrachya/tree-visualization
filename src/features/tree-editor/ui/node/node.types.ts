@@ -1,5 +1,4 @@
 import type { BlockType, NodeId } from '@/entities/tree'
-import type { CSSProperties, InputHTMLAttributes, MouseEventHandler } from 'react'
 
 export type TNode = {
   id: NodeId
@@ -7,8 +6,10 @@ export type TNode = {
   type: BlockType
   children: TNode[]
   hasChildren: boolean
-  isExpanded: boolean
+  isOpened: boolean
   blocks: BlockItem[]
+  isFirst?: boolean
+  parentId?: NodeId | null
 }
 
 export type NodeSize = {
@@ -27,23 +28,6 @@ export type DragPayload = {
 }
 
 export type NodeCardProps = {
-  nodeId?: string
-  isActive?: boolean
-  onActiveChange?: (active: boolean) => void
-  onClick?: MouseEventHandler<HTMLDivElement>
-  className?: string
-  style?: CSSProperties
-  inputProps?: InputHTMLAttributes<HTMLInputElement>
-  canAddChild?: boolean
-  onAddChild?: () => void
-  canDelete?: boolean
-  onDelete?: () => void
-  canCollapse?: boolean
-  isExpanded?: boolean
-  onToggleExpand?: () => void
-  blocks?: BlockItem[]
-  onAddBlock?: () => void
-  onRemoveBlock?: (id: string) => void
-  onRenameBlock?: (id: string, name: string) => void
-  onMoveBlock?: (fromNodeId: string, toNodeId: string, blockId: string, index?: number) => void
+  node: TNode
+  setSelect: (active: boolean) => void
 }

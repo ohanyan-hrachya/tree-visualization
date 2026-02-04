@@ -1,17 +1,14 @@
 import type { NodeId, TreeNode } from '@/entities/tree'
+
 import type { TNode } from '../node/node.types'
 
-export const buildTreeView = (
-  nodes: Record<NodeId, TreeNode>,
-  expanded: Record<NodeId, true>,
-  nodeId: NodeId
-): TNode | null => {
+export const buildTreeView = (nodes: Record<NodeId, TreeNode>, nodeId: NodeId): TNode | null => {
   const node = nodes[nodeId]
   if (!node) return null
 
-  const isExpanded = Boolean(expanded[nodeId])
-  const children = isExpanded
-    ? node.children.map((childId) => buildTreeView(nodes, expanded, childId)).filter(Boolean)
+  const isOpened = Boolean(node.opened)
+  const children = isOpened
+    ? node.children.map((childId) => buildTreeView(nodes, childId)).filter(Boolean)
     : []
 
   return {
@@ -19,7 +16,8 @@ export const buildTreeView = (
     label: node.name,
     type: node.type,
     hasChildren: node.children.length > 0,
-    isExpanded,
+    parentId: node.parentId,
+    isOpened,
     blocks: node.blocks ?? [],
     children: children as TNode[],
   }

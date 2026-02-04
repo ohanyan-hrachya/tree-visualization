@@ -14,22 +14,11 @@ export interface TreeNode {
   parentId: NodeId | null
   children: NodeId[]
   blocks: BlockItem[]
-}
-
-export type TreeSnapshot = {
-  nodes: Record<NodeId, TreeNode>
-  expanded: Record<NodeId, true>
-}
-
-export type HistoryState = {
-  past: TreeSnapshot[]
-  future: TreeSnapshot[]
+  opened: boolean
 }
 
 export interface TreeState {
   nodes: Record<NodeId, TreeNode>
-  expanded: Record<NodeId, true>
-  history: HistoryState
 
   renameNode(id: NodeId, name: string): void
   addNode(parentId: NodeId, name?: string): NodeId | null
@@ -38,8 +27,5 @@ export interface TreeState {
   removeBlock(nodeId: NodeId, blockId: NodeId): void
   renameBlock(nodeId: NodeId, blockId: NodeId, name: string): void
   moveBlock(fromNodeId: NodeId, toNodeId: NodeId, blockId: NodeId, index?: number): void
-  moveNode(id: NodeId, nextParentId: NodeId, index?: number): void
-  toggleExpand(id: NodeId): void
-  undo(): void
-  redo(): void
+  toggleOpened(id: NodeId): void
 }

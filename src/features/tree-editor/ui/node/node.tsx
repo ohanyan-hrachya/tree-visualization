@@ -1,56 +1,51 @@
 ﻿import type { DragEvent } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { useDebouncedCallback } from 'use-debounce'
+
+import {
+  useAddNode,
+  useMoveBlock,
+  useRemoveNode,
+  useRenameNode,
+  useToggleOpened,
+} from '@/entities/tree'
 import { Blocks } from '@/features/tree-editor'
 import { IconButton } from '@/shared/ui'
 
-import type { DragPayload, NodeCardProps } from './node.types'
 import {
   CLOSE_STYLE,
   DROP_ACTIVE_STYLE,
   INPUT_STYLE,
-  LINE_PLUS_STYLE,
   NODE_CARD_STYLE,
   PLUS_STYLE,
   STACK_STYLE,
 } from './node.constants'
+import type { DragPayload, NodeCardProps } from './node.types'
 
-export const Node = ({
-  nodeId,
-  isActive,
-  onActiveChange,
-  onClick,
-  className,
-  style,
-  inputProps,
-  canAddChild = true,
-  onAddChild,
-  canDelete = true,
-  onDelete,
-  canCollapse = false,
-  isExpanded = true,
-  onToggleExpand,
-  blocks = [],
-  onAddBlock,
-  onRemoveBlock,
-  onRenameBlock,
-  onMoveBlock,
-}: NodeCardProps) => {
-  const [internalActive, setInternalActive] = useState(false)
+export const Node = memo(({ node, setSelect }: NodeCardProps) => {
+  const onAddChild = useAddNode()
+  const onRename = useRenameNode()
+  const onToggleOpened = useToggleOpened()
+  const onDelete = useRemoveNode()
+  const onMoveBlock = useMoveBlock()
+  const [isActive, setIsActive] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const cardRef = useRef<HTMLDivElement | null>(null)
 
-  const active = isActive ?? internalActive
-  const isControlled = isActive !== undefined
+  const nodeId = node.id
+  const isOpened = node.isOpened
+  const showCollapse = node.hasChildren
 
-  const setActive = (next: boolean) => {
-    if (!isControlled) {
-      setInternalActive(next)
-    }
-    onActiveChange?.(next)
-  }
+  const setActive = useCallback(
+    (next: boolean) => {
+      setIsActive(next)
+      setSelect(next)
+    },
+    [setSelect, setIsActive]
+  )
 
   useEffect(() => {
-    if (!active) return
+    if (!isActive) return
 
     const handleClickOutside = (event: MouseEvent) => {
       if (cardRef.current && event?.target && !cardRef.current?.contains(event.target as Node)) {
@@ -63,128 +58,126 @@ export const Node = ({
       document.removeEventListener('mousedown', handleClickOutside)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
+  }, [isActive])
 
-  const {
-    className: inputClassName,
-    defaultValue: inputDefaultValue,
-    value: inputValue,
-    ...restInputProps
-  } = inputProps ?? {}
+  const handleDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!onMoveBlock || !nodeId) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+      setIsDragOver(true)
+    },
+    [onMoveBlock, nodeId]
+  )
 
-  const inputControlProps =
-    inputValue !== undefined ? { value: inputValue } : { defaultValue: inputDefaultValue ?? 'Page' }
-
-  const showInactiveAdd = canAddChild && !active
-  const showDelete = canDelete && active
-  const showCollapse = canCollapse
-  const showLinePlus = showInactiveAdd && showCollapse
-  const showCollapsedStack = showCollapse && !isExpanded
-
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-    if (!onMoveBlock || !nodeId) return
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-    setIsDragOver(true)
-  }
-
-  const handleDragLeave = () => {
+  const handleDragLeave = useCallback(() => {
     setIsDragOver(false)
-  }
+  }, [])
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    if (!onMoveBlock || !nodeId) return
-    event.preventDefault()
-    setIsDragOver(false)
+  const handleDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!onMoveBlock || !nodeId) return
+      event.preventDefault()
+      setIsDragOver(false)
 
-    const payload = event.dataTransfer.getData('application/x-tree-block')
-    if (!payload) return
+      const payload = event.dataTransfer.getData('application/x-tree-block')
+      if (!payload) return
 
-    try {
-      const data = JSON.parse(payload) as DragPayload
-      if (!data.blockId || !data.fromNodeId) return
-      if (data.fromNodeId === nodeId) return
-      onMoveBlock(data.fromNodeId, nodeId, data.blockId)
-    } catch {
-      return
-    }
-  }
+      try {
+        const data = JSON.parse(payload) as DragPayload
+        if (!data.blockId || !data.fromNodeId) return
+        if (data.fromNodeId === nodeId) return
+        onMoveBlock(data.fromNodeId, nodeId, data.blockId)
+      } catch {
+        return
+      }
+    },
+    [onMoveBlock, nodeId]
+  )
+
+  const handleNameChange = useDebouncedCallback((value: string) => {
+    onRename(nodeId, value)
+  }, 180)
 
   return (
     <div
       ref={cardRef}
-      style={style}
-      className={`${NODE_CARD_STYLE} ${active ? 'bg-gray-950!' : ''} ${className ?? ''}`}
-      onClick={(event) => {
+      className={`${NODE_CARD_STYLE} ${isActive ? 'bg-gray-950!' : ''}`}
+      onClick={() => {
         setActive(true)
-        onClick?.(event)
       }}
     >
-      {showCollapsedStack ? (
+      {showCollapse && !isOpened ? (
         <>
-          <div className={`${STACK_STYLE} translate-y-[4px] z-[-1]`} />
-          <div className={`${STACK_STYLE} translate-y-[8px] z-[-2]`} />
+          <div className={`${STACK_STYLE} translate-y-[7px] z-[-1]`} />
+          <div className={`${STACK_STYLE} translate-y-[12px] z-[-2]`} />
         </>
       ) : null}
       {showCollapse ? (
         <IconButton
-          name={isExpanded ? 'arrowUp' : 'arrowDown'}
+          name={isOpened ? 'arrowUp' : 'arrowDown'}
           className={PLUS_STYLE}
           onClick={(event) => {
             event.stopPropagation()
-            onToggleExpand?.()
+            onToggleOpened(nodeId)
           }}
-          aria-label={isExpanded ? 'Collapse node' : 'Expand node'}
+          aria-label={isOpened ? 'Collapse node' : 'Expand node'}
         />
       ) : null}
 
       <input
         type="text"
-        {...restInputProps}
-        {...inputControlProps}
-        className={`${INPUT_STYLE} ${active ? 'text-gray-50!' : ''} ${inputClassName ?? ''}`}
+        defaultValue={node.label}
+        onChange={(event) => handleNameChange(event.target.value)}
+        className={`${INPUT_STYLE} ${isActive ? 'text-gray-50!' : ''}`}
       />
 
       <div
-        className={`${isDragOver ? DROP_ACTIVE_STYLE : ''} rounded-md min-h-[12px]`}
+        className={`${isDragOver ? DROP_ACTIVE_STYLE : ''} ${!isActive && node.blocks?.length === 0 ? 'absolute z-20 left-0 top-0 w-full h-full' : ''} rounded-md min-h-[12px]`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <Blocks
-          items={blocks}
-          isActive={active}
-          onAdd={onAddBlock}
-          onRemove={onRemoveBlock}
-          onRename={onRenameBlock}
-          onMove={onMoveBlock}
-          dragContextId={nodeId}
-        />
+        <Blocks node={node} isActive={isActive} onMove={onMoveBlock} />
       </div>
 
-      {showInactiveAdd ? (
+      {nodeId !== 'root' && node?.parentId && node?.isFirst ? (
+        <div className="w-full h-[50px] absolute top-[-55px] left-0">
+          <IconButton
+            name="plus"
+            className={`${PLUS_STYLE} bottom-[100%]! mb-[-30px]!`}
+            onClick={(event) => {
+              event.stopPropagation()
+              onAddChild(node.parentId!)
+            }}
+            aria-label="Add child"
+          />
+        </div>
+      ) : null}
+
+      {!showCollapse && !isActive ? (
         <IconButton
           name="plus"
-          className={showLinePlus ? LINE_PLUS_STYLE : PLUS_STYLE}
+          className={PLUS_STYLE}
           onClick={(event) => {
             event.stopPropagation()
-            onAddChild?.()
+            onAddChild(nodeId)
           }}
           aria-label="Add child"
         />
       ) : null}
 
-      {showDelete ? (
+      {nodeId !== 'root' && isActive ? (
         <IconButton
           name="close"
           className={CLOSE_STYLE}
           onClick={(event) => {
             event.stopPropagation()
-            onDelete?.()
+            onDelete(node.id)
           }}
           aria-label="Delete node"
         />
       ) : null}
     </div>
   )
-}
+})

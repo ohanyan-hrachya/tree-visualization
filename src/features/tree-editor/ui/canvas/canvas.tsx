@@ -1,35 +1,24 @@
-﻿import { useMemo, useRef, useState, useLayoutEffect } from 'react'
+﻿import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+
+import type { NodeId } from '@/entities/tree'
+
+import { Line } from '../line'
 import { Node } from '../node'
 import { DEFAULT_NODE_SIZE } from './canvas.constants'
+import { getBottomAnchor, getTopAnchor, layoutTree } from './canvas.helpers'
 import type { TreeCanvasProps } from './canvas.types'
-import { Line } from '../line'
-import { getBottomAnchor, layoutTree, getTopAnchor } from './canvas.helpers'
 
-export const Canvas = ({
-  root,
-  nodeSize = DEFAULT_NODE_SIZE,
-  className,
-  selectedNodeId,
-  onNodeActiveChange,
-  onNodeAddChild,
-  onNodeAddBlock,
-  onNodeRemoveBlock,
-  onNodeRenameBlock,
-  onNodeMoveBlock,
-  onNodeDelete,
-  onNodeRename,
-  onNodeToggleExpand,
-  lineColor = '#0f172a',
-}: TreeCanvasProps) => {
+export const Canvas = ({ root }: TreeCanvasProps) => {
+  const [selectedNodeId, setSelectedNodeId] = useState<NodeId | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const [canvasWidth, setCanvasWidth] = useState(720)
+  const [canvasWidth, setCanvasWidth] = useState(340)
 
   useLayoutEffect(() => {
     if (!containerRef.current) return
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setCanvasWidth(entry.contentRect.width)
+        setCanvasWidth(entry.contentRect.width - 20)
       }
     })
 
@@ -38,8 +27,8 @@ export const Canvas = ({
   }, [])
 
   const layout = useMemo(
-    () => layoutTree(root, nodeSize, canvasWidth, selectedNodeId),
-    [root, nodeSize, canvasWidth, selectedNodeId]
+    () => layoutTree(root, DEFAULT_NODE_SIZE, canvasWidth, selectedNodeId),
+    [root, canvasWidth, selectedNodeId]
   )
   const nodesById = useMemo(
     () => new Map(layout.nodes.map((node) => [node.id, node])),
@@ -47,7 +36,10 @@ export const Canvas = ({
   )
 
   return (
-    <div ref={containerRef} className={`relative overflow-auto ${className ?? ''}`}>
+    <div
+      ref={containerRef}
+      className="relative overflow-auto h-screen w-screen rounded-xl border border-slate-300 bg-transparent"
+    >
       <svg
         className="absolute inset-0 pointer-events-none"
         width={layout.width}
@@ -63,9 +55,8 @@ export const Canvas = ({
           return (
             <Line
               key={`${edge.fromId}-${edge.toId}`}
-              from={getBottomAnchor(fromNode, nodeSize)}
-              to={getTopAnchor(toNode, nodeSize)}
-              stroke={lineColor}
+              from={getBottomAnchor(fromNode, DEFAULT_NODE_SIZE)}
+              to={getTopAnchor(toNode, DEFAULT_NODE_SIZE)}
             />
           )
         })}
@@ -78,28 +69,10 @@ export const Canvas = ({
           style={{ left: node.position.x, top: node.position.y }}
         >
           <Node
-            nodeId={node.id}
-            isActive={node.id === selectedNodeId}
-            onActiveChange={(active) => onNodeActiveChange?.(node, active)}
-            canAddChild={true}
-            onAddChild={() => onNodeAddChild?.(node.id)}
-            canDelete={node.type !== 'root'}
-            onDelete={() => onNodeDelete?.(node.id)}
-            canCollapse={node.hasChildren}
-            isExpanded={node.isExpanded}
-            onToggleExpand={() => onNodeToggleExpand?.(node.id)}
-            blocks={node.blocks}
-            onAddBlock={() => onNodeAddBlock?.(node.id)}
-            onRemoveBlock={(blockId) => onNodeRemoveBlock?.(node.id, blockId)}
-            onRenameBlock={(blockId, name) => onNodeRenameBlock?.(node.id, blockId, name)}
-            onMoveBlock={(fromNodeId, toNodeId, blockId, index) =>
-              onNodeMoveBlock?.(fromNodeId, toNodeId, blockId, index)
+            node={node}
+            setSelect={(active) =>
+              setSelectedNodeId((prev) => (active ? node.id : prev === node.id ? null : prev))
             }
-            style={{ width: nodeSize.width, minHeight: nodeSize.height }}
-            inputProps={{
-              value: node.label,
-              onChange: (event) => onNodeRename?.(node.id, event.currentTarget.value),
-            }}
           />
         </div>
       ))}
