@@ -1,76 +1,98 @@
-﻿import type { DragEvent, ChangeEvent } from 'react'
-import { useState } from 'react'
+﻿import type { DragEvent } from 'react'
+import { memo, useCallback, useState } from 'react'
+import { useDebouncedCallback } from 'use-debounce'
+
+import { useAddBlock, useRemoveBlock, useRenameBlock } from '@/entities/tree'
 import { IconButton } from '@/shared/ui'
+
 import type { BlocksProps } from './blocks.types'
 
-export const Blocks = ({
-  items = [],
-  isActive = false,
-  onAdd,
-  onRemove,
-  onRename,
-  onMove,
-  dragContextId,
-  className,
-}: BlocksProps) => {
+export const Blocks = memo(({ node, isActive = false, onMove }: BlocksProps) => {
+  const onAdd = useAddBlock()
+  const onRemove = useRemoveBlock()
+  const onRename = useRenameBlock()
   const [dropIndex, setDropIndex] = useState<number | null>(null)
 
-  const handleDragStart = (event: DragEvent<HTMLLIElement>, blockId: string) => {
-    if (!dragContextId) return
-    event.dataTransfer.setData(
-      'application/x-tree-block',
-      JSON.stringify({ blockId, fromNodeId: dragContextId })
-    )
-    event.dataTransfer.effectAllowed = 'move'
-  }
+  const nodeId = node.id
+  const items = node.blocks
 
-  const handleNameChange = (event: ChangeEvent<HTMLInputElement>, blockId: string) => {
-    onRename?.(blockId, event.currentTarget.value)
-  }
+  const handleDragStart = useCallback(
+    (event: DragEvent<HTMLLIElement>, blockId: string) => {
+      if (!nodeId) return
+      event.dataTransfer.setData(
+        'application/x-tree-block',
+        JSON.stringify({ blockId, fromNodeId: nodeId })
+      )
+      event.dataTransfer.effectAllowed = 'move'
+    },
+    [nodeId]
+  )
 
-  const handleDragOverItem = (event: DragEvent<HTMLLIElement>, index: number) => {
-    if (!dragContextId || !onMove) return
-    event.preventDefault()
-    event.stopPropagation()
-    event.dataTransfer.dropEffect = 'move'
-    setDropIndex(index)
-  }
+  const handleDragOverItem = useCallback(
+    (event: DragEvent<HTMLLIElement>, index: number) => {
+      if (!nodeId || !onMove) return
+      event.preventDefault()
+      event.stopPropagation()
+      event.dataTransfer.dropEffect = 'move'
+      setDropIndex(index)
+    },
+    [nodeId, onMove]
+  )
 
-  const handleDragOverList = (event: DragEvent<HTMLUListElement | HTMLDivElement>) => {
-    if (!dragContextId || !onMove) return
-    if (event.target !== event.currentTarget) return
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-    setDropIndex(items.length)
-  }
+  const handleDragOverList = useCallback(
+    (event: DragEvent<HTMLUListElement | HTMLDivElement>) => {
+      if (!nodeId || !onMove) return
+      if (event.target !== event.currentTarget) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+      setDropIndex(items.length)
+    },
+    [nodeId, onMove, items.length]
+  )
 
-  const handleDragLeave = () => {
+  const handleDragLeave = useCallback(() => {
     setDropIndex(null)
-  }
+  }, [])
 
-  const handleDrop = (event: DragEvent<HTMLElement>, index?: number) => {
-    if (!dragContextId || !onMove) return
-    event.preventDefault()
-    event.stopPropagation()
-    setDropIndex(null)
+  const handleDrop = useCallback(
+    (event: DragEvent<HTMLElement>, index?: number) => {
+      if (!nodeId || !onMove) return
+      event.preventDefault()
+      event.stopPropagation()
+      setDropIndex(null)
 
-    const payload = event.dataTransfer.getData('application/x-tree-block')
-    if (!payload) return
+      const payload = event.dataTransfer.getData('application/x-tree-block')
+      if (!payload) return
 
-    try {
-      const data = JSON.parse(payload) as { blockId: string; fromNodeId: string }
-      if (!data.blockId || !data.fromNodeId) return
-      onMove(data.fromNodeId, dragContextId, data.blockId, index)
-    } catch {
-      return
-    }
-  }
+      try {
+        const data = JSON.parse(payload) as { blockId: string; fromNodeId: string }
+        if (!data.blockId || !data.fromNodeId) return
+        onMove(data.fromNodeId, nodeId, data.blockId, index)
+      } catch {
+        return
+      }
+    },
+    [nodeId, onMove]
+  )
+
+  const handleNameChange = useDebouncedCallback((value: string, blockId: string) => {
+    onRename(nodeId, blockId, value)
+  }, 180)
+
+  const handleAdd = useCallback(() => onAdd(nodeId), [nodeId, onAdd])
+
+  const handleRemoveBlock = useCallback(
+    (blockId: string) => {
+      onRemove(nodeId, blockId)
+    },
+    [nodeId, onRemove]
+  )
 
   return (
-    <div className={`flex w-full flex-col gap-2 ${className ?? ''}`}>
+    <div className="flex w-full flex-col gap-2">
       {items.length > 0 ? (
         <ul
-          className="flex flex-col gap-1"
+          className="flex flex-col gap-[6px]"
           onDragOver={handleDragOverList}
           onDragLeave={handleDragLeave}
           onDrop={(event) => {
@@ -81,26 +103,27 @@ export const Blocks = ({
           {items.map((item, index) => (
             <li
               key={item.id}
-              draggable={Boolean(dragContextId)}
+              draggable={Boolean(nodeId)}
               onDragStart={(event) => handleDragStart(event, item.id)}
               onDragOver={(event) => handleDragOverItem(event, index)}
               onDrop={(event) => handleDrop(event, index)}
-              className={`relative flex items-center justify-between gap-2 rounded-full bg-gray-950 px-0 py-[2px] text-[10px] font-semibold text-gray-50 cursor-grab ${
-                dropIndex === index ? 'outline outline-1 outline-gray-200' : ''
+              className={`overflow-hidden relative flex items-center justify-between gap-2 rounded-full bg-gray-950 px-0 py-[0px] text-[10px] font-semibold text-gray-50 ${
+                dropIndex === index ? 'opacity-1' : ''
               }`}
             >
               <input
                 type="text"
-                value={item.name}
-                onChange={(event) => handleNameChange(event, item.id)}
+                defaultValue={item.name}
+                onChange={(event) => handleNameChange(event.target.value, item.id)}
                 readOnly={!isActive}
                 draggable={false}
-                className={`rounded-full w-full px-[10px] py-[6px] text-gray-50 border-0 font-inter font-bold text-[14px] leading-[100%] focus:outline-none focus:bg-gray-400`}
+                className={`${isActive ? 'bg-gray-50 text-gray-950' : 'cursor-grab bg-gray-950 text-gray-50'} rounded-full w-full h-[30px] px-[10px] py-[6px]  border-0 font-inter font-bold text-[14px] leading-[100%] focus:outline-none focus:bg-gray-400 focus:text-gray-50`}
               />
+
               {isActive ? (
                 <IconButton
                   name="close"
-                  onClick={() => onRemove?.(item.id)}
+                  onClick={() => handleRemoveBlock(item.id)}
                   className="z-10 absolute right-2 top-1/2 -translate-y-1/2 size-[18px] border-0!"
                   draggable={false}
                 />
@@ -108,7 +131,7 @@ export const Blocks = ({
             </li>
           ))}
         </ul>
-      ) : (
+      ) : isActive ? null : (
         <div
           className="h-4"
           onDragOver={handleDragOverList}
@@ -120,11 +143,11 @@ export const Blocks = ({
       {isActive ? (
         <IconButton
           name="plusLarge"
-          onClick={onAdd}
+          onClick={handleAdd}
           aria-label="Add block"
           className="cursor-pointer"
         />
       ) : null}
     </div>
   )
-}
+})
