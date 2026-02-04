@@ -34,6 +34,13 @@ An interactive tree editor with draggable blocks, collapsible nodes, and SVG con
 - `pnpm format` - format the codebase
 - `pnpm typecheck` - TypeScript type check
 
+**CI/CD (GitHub + Vercel)**
+
+- GitHub Actions `CI` runs typecheck, lint, and build on every pull request and on pushes to `main`.
+- GitHub Actions `Vercel Deploy` deploys previews for pull requests and production for pushes to `main`.
+- Vercel setup: create a Vercel project and connect this repo.
+- Add these GitHub repo secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+
 **Project Structure**
 
 - `src/app` - application entry
