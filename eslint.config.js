@@ -24,5 +24,9 @@ export default tseslint.config(
       'simple-import-sort/exports': 'error',
     },
   },
+  {
+    files: ['**/*.test.{ts,tsx}'],
+    languageOptions: { globals: { ...globals.browser, ...globals.jest } },
+  },
   prettierConfig
 )

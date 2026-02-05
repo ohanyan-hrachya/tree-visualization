@@ -1,3 +1,5 @@
+import { useShallow } from 'zustand/react/shallow'
+
 import { useTreeStore } from './tree.store'
 import type { NodeId } from './tree.types'
 
@@ -32,13 +34,15 @@ export const useToggleOpened = () => useTreeStore((state) => state.toggleOpened)
 // Combined Actions - Use only when you need multiple actions together
 
 export const useTreeActions = () =>
-  useTreeStore((state) => ({
-    renameNode: state.renameNode,
-    addNode: state.addNode,
-    removeNode: state.removeNode,
-    addBlock: state.addBlock,
-    removeBlock: state.removeBlock,
-    renameBlock: state.renameBlock,
-    moveBlock: state.moveBlock,
-    toggleOpened: state.toggleOpened,
-  }))
+  useTreeStore(
+    useShallow((state) => ({
+      renameNode: state.renameNode,
+      addNode: state.addNode,
+      removeNode: state.removeNode,
+      addBlock: state.addBlock,
+      removeBlock: state.removeBlock,
+      renameBlock: state.renameBlock,
+      moveBlock: state.moveBlock,
+      toggleOpened: state.toggleOpened,
+    }))
+  )

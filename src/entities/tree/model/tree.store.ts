@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist, subscribeWithSelector } from 'zustand/middleware'
+import { createJSONStorage, persist, subscribeWithSelector } from 'zustand/middleware'
 
 import { nanoid } from '@/shared/lib/nanoid'
 
@@ -235,6 +235,22 @@ export const useTreeStore = create<TreeState>()(
       }),
       {
         name: 'tree-store',
+        storage: createJSONStorage(() => {
+          if (typeof localStorage !== 'undefined') {
+            return localStorage
+          }
+          // Fallback for non-browser environments (tests/SSR)
+          const memory = new Map<string, string>()
+          return {
+            getItem: (key) => (memory.has(key) ? memory.get(key)! : null),
+            setItem: (key, value) => {
+              memory.set(key, value)
+            },
+            removeItem: (key) => {
+              memory.delete(key)
+            },
+          }
+        }),
         partialize: (state) => ({
           nodes: state.nodes,
         }),
