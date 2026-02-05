@@ -123,6 +123,7 @@ export const Blocks = memo(({ node, isActive = false, onMove }: BlocksProps) => 
               {isActive ? (
                 <IconButton
                   name="close"
+                  aria-label="Remove block"
                   onClick={() => handleRemoveBlock(item.id)}
                   className="z-10 absolute right-2 top-1/2 -translate-y-1/2 size-[18px] border-0!"
                   draggable={false}
