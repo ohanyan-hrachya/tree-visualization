@@ -47,3 +47,7 @@ An interactive tree editor with draggable blocks, collapsible nodes, and SVG con
 - `src/features/tree-editor` - tree editor UI and layout
 - `src/entities/tree` - tree domain model and store
 - `src/shared` - shared UI and utilities
+
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/e55c1d0f-759c-49c2-8838-dc06215069dd" />
+
+
